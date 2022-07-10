@@ -1,0 +1,95 @@
+# Set current user in nss_wrapper
+USER_ID=$(id -u)
+GROUP_ID=$(id -g)
+
+# Attempt to set the username to the kasm username
+USERNAME=${KASM_USER:-default}
+# Make the username posix compliant
+USERNAME=$(echo "$USERNAME" | sed -r 's#[^a-zA-Z0-9\._\-]#_#g')
+if ! echo "$USERNAME" | grep -qP "^[a-zA-Z0-9_\.][a-zA-Z0-9_\-\.]*"; then
+    USERNAME="default"
+fi
+export PS1="$USERNAME:\w\$ "
+
+# enable color support of ls and also add handy aliases
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+    #alias dir='dir --color=auto'
+    #alias vdir='vdir --color=auto'
+
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# colored GCC warnings and errors
+#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# some more ls aliases
+alias ll="ls -alFh --color=always | awk '{k=0;for(i=0;i<=8;i++)k+=((substr(\$1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf(\" %0o \",k);print}'"
+alias la='ls -A'
+alias l='ls -CF'
+
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+parse_git_branch() {
+ git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
+}
+if [ "$color_prompt" = yes ]; then
+ PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;31m\]$(parse_git_branch)\[\033[00m\]\$ '
+else
+ PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w$(parse_git_branch)\$ '
+fi
+#if [ "$color_prompt" = yes ]; then
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+#else
+#    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+#fi
+unset color_prompt force_color_prompt
+
+# Tree Alias
+alias t='tree -a -L 1 --dirsfirst -p -u -h'
+alias tt='tree -a -L 2 --dirsfirst -p -u -h'
+alias ttt='tree -a -L 3 --dirsfirst -p -u -h'
+
+# Function for formatting docker images (alias)
+function i() {
+	docker images
+}
+
+# Function for formatting docker system df -v (alias)
+function s() {
+	docker system df -v
+}
+
+# Function for formatting docker ps -a
+function c() {
+	docker ps -a --format "table {{ .ID }}\t{{.Names}}\t{{.RunningFor}}\t{{ .Image }}\t{{.Status}}\t{{.Ports}}" | while read line; do
+		if `echo $line | grep -q 'CONTAINER ID'`; then
+			echo -e "CNT_ADDRESS\t$line"
+		else
+			CID=$(echo $line | awk '{print $1}');
+			IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $CID);
+			printf "${IP}\t${line}\n"
+		fi
+	done
+}
+
+# Docker Log Alias
+alias dlog='docker logs -f -n 100 -t'
+
+dp() {
+    docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock quay.io/devopsita/docker-pretty-ps:latest docker-pretty-ps $@
+}
